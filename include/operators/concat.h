@@ -19,14 +19,20 @@ class ConcatObj : public OperatorObj {
      * @param output Concatenated tensor.
      * @param dim The dimension to concatenate on.
      */
-    ConcatObj(GraphObj *graph, TensorVec inputs, Tensor output, int dim);
+    ConcatObj(GraphObj* graph, TensorVec inputs, Tensor output, int dim);
     OP_CLONE(ConcatObj);
 
-    optional<vector<Shape>> inferShape(const TensorVec &inputs) override;
+    optional<vector<Shape>> inferShape(const TensorVec& inputs) override;
 
     std::string toString() const override;
-    int numInputs() const override { return inputs.size(); }
-    int numOutputs() const override { return 1; }
-    int getDim() const { return dim; }
+    int numInputs() const override {
+        return inputs.size();
+    }
+    int numOutputs() const override {
+        return 1;
+    }
+    int getDim() const {
+        return dim;
+    }
 };
-} // namespace infini
+}  // namespace infini

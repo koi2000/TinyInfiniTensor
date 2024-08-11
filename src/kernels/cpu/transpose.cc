@@ -3,7 +3,7 @@
 
 namespace infini {
 
-inline Shape idx2Pos(const Shape &shape, size_t idx) {
+inline Shape idx2Pos(const Shape& shape, size_t idx) {
     Shape pos = Shape(shape.size(), 0);
     auto rest = idx, curDimId = shape.size() - 1;
     while (rest > 0) {
@@ -15,16 +15,14 @@ inline Shape idx2Pos(const Shape &shape, size_t idx) {
 }
 
 class NaiveTranspose : public CpuKernelWithoutConfig {
-    template <typename T>
-    void doCompute(const Operator &_op, const RuntimeObj *context) const {
+    template <typename T> void doCompute(const Operator& _op, const RuntimeObj* context) const {
         auto op = as<TransposeObj>(_op);
         auto inputs = op->getInputs(), outputs = op->getOutputs();
-        const auto &inDim = inputs[0]->getDims();
-        const auto &perm = op->getPermute();
+        const auto& inDim = inputs[0]->getDims();
+        const auto& perm = op->getPermute();
 
         size_t inSize = inputs[0]->size();
-        auto inPtr = inputs[0]->getRawDataPtr<T *>(),
-             outPtr = outputs[0]->getRawDataPtr<T *>();
+        auto inPtr = inputs[0]->getRawDataPtr<T*>(), outPtr = outputs[0]->getRawDataPtr<T*>();
         // #pragma omp parallel for
         for (size_t inIdx = 0; inIdx < inSize; ++inIdx) {
             auto posInput = idx2Pos(inDim, inIdx);
@@ -36,25 +34,21 @@ class NaiveTranspose : public CpuKernelWithoutConfig {
         }
     }
 
-    void compute(const Operator &_op,
-                 const RuntimeObj *context) const override {
-#define CASE(N)                                                                \
-    case N:                                                                    \
-        doCompute<DT<N>::t>(_op, context)
+    void compute(const Operator& _op, const RuntimeObj* context) const override {
+#define CASE(N)                                                                                                        \
+    case N: doCompute<DT<N>::t>(_op, context)
 
         int dataTypeIdx = _op->getDType().getIndex();
         switch (dataTypeIdx) {
-            CASE(1); // DataType::Float32
+            CASE(1);  // DataType::Float32
             break;
-            CASE(12); // DataType::UInt32
+            CASE(12);  // DataType::UInt32
             break;
-        default:
-            IT_TODO_HALT();
+            default: IT_TODO_HALT();
         }
     }
 };
 
-REGISTER_KERNEL(Device::CPU, OpType::Transpose, NaiveTranspose,
-                "TransposeNaive_CPU");
+REGISTER_KERNEL(Device::CPU, OpType::Transpose, NaiveTranspose, "TransposeNaive_CPU");
 
-} // namespace infini
+}  // namespace infini

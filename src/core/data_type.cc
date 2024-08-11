@@ -19,4 +19,4 @@ const DataType DataType::Double(11);
 const DataType DataType::UInt32(12);
 const DataType DataType::UInt64(13);
 const DataType DataType::BFloat16(16);
-} // namespace infini
+}  // namespace infini

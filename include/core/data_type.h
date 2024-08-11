@@ -41,14 +41,11 @@ class DataType {
                                              0,
                                              sizeof(uint16_t)};
 
-    static constexpr std::string_view names[]{
-        "Undefine",    "Float32", "UInt8",  "Int8",   "UInt16",
-        "Int16",       "Int32",   "Int64",  "String", "Bool",
-        "Float16",     "Double",  "UInt32", "UInt64", "PlaceHolder",
-        "PlaceHolder", "BFloat16"};
+    static constexpr std::string_view names[]{"Undefine", "Float32", "UInt8",       "Int8",        "UInt16",  "Int16",
+                                              "Int32",    "Int64",   "String",      "Bool",        "Float16", "Double",
+                                              "UInt32",   "UInt64",  "PlaceHolder", "PlaceHolder", "BFloat16"};
 
-    static constexpr int cpuType[]{-1, 0, 2, 3, 4, 5,  6,  7, -1,
-                                   3,  4, 9, 1, 8, -1, -1, 4};
+    static constexpr int cpuType[]{-1, 0, 2, 3, 4, 5, 6, 7, -1, 3, 4, 9, 1, 8, -1, -1, 4};
 
   private:
     int index;
@@ -58,30 +55,62 @@ class DataType {
     // https://github.com/nlohmann/json#how-can-i-use-get-for-non-default-constructiblenon-copyable-types
     DataType() = default;
     constexpr DataType(int index) : index(index) {}
-    bool operator==(const DataType &rhs) const { return index == rhs.index; }
-    bool operator<(const DataType &rhs) const { return index < rhs.index; }
+    bool operator==(const DataType& rhs) const {
+        return index == rhs.index;
+    }
+    bool operator<(const DataType& rhs) const {
+        return index < rhs.index;
+    }
 
     template <typename T> static int get() {
         IT_TODO_HALT_MSG("Unsupported data type");
     }
-    size_t getSize() const { return sizePerElement[index]; }
-    string toString() const { return string(names[index]); }
-    int cpuTypeInt() const { return cpuType[index]; }
-    int getIndex() const { return index; }
+    size_t getSize() const {
+        return sizePerElement[index];
+    }
+    string toString() const {
+        return string(names[index]);
+    }
+    int cpuTypeInt() const {
+        return cpuType[index];
+    }
+    int getIndex() const {
+        return index;
+    }
 };
 
 // Method definitions are out of the declaration due to GCC bug:
 // https://stackoverflow.com/questions/49707184/explicit-specialization-in-non-namespace-scope-does-not-compile-in-gcc
-template <> inline int DataType::get<float>() { return 0; }
-template <> inline int DataType::get<uint32_t>() { return 1; }
-template <> inline int DataType::get<uint8_t>() { return 2; }
-template <> inline int DataType::get<int8_t>() { return 3; }
-template <> inline int DataType::get<uint16_t>() { return 4; }
-template <> inline int DataType::get<int16_t>() { return 5; }
-template <> inline int DataType::get<int32_t>() { return 6; }
-template <> inline int DataType::get<int64_t>() { return 7; }
-template <> inline int DataType::get<uint64_t>() { return 8; }
-template <> inline int DataType::get<double>() { return 9; }
+template <> inline int DataType::get<float>() {
+    return 0;
+}
+template <> inline int DataType::get<uint32_t>() {
+    return 1;
+}
+template <> inline int DataType::get<uint8_t>() {
+    return 2;
+}
+template <> inline int DataType::get<int8_t>() {
+    return 3;
+}
+template <> inline int DataType::get<uint16_t>() {
+    return 4;
+}
+template <> inline int DataType::get<int16_t>() {
+    return 5;
+}
+template <> inline int DataType::get<int32_t>() {
+    return 6;
+}
+template <> inline int DataType::get<int64_t>() {
+    return 7;
+}
+template <> inline int DataType::get<uint64_t>() {
+    return 8;
+}
+template <> inline int DataType::get<double>() {
+    return 9;
+}
 
 template <int index> struct DT {};
 template <> struct DT<0> { using t = bool; };
@@ -100,4 +129,4 @@ template <> struct DT<12> { using t = uint32_t; };
 template <> struct DT<13> { using t = uint64_t; };
 template <> struct DT<16> { using t = uint16_t; };
 
-} // namespace infini
+}  // namespace infini

@@ -12,9 +12,11 @@ class Uid {
 
   public:
     Uid(UidBaseType uid) : uid(uid) {}
-    Uid &operator=(const Uid &rhs) = delete;
+    Uid& operator=(const Uid& rhs) = delete;
 
-    operator UidBaseType() const { return uid; }
+    operator UidBaseType() const {
+        return uid;
+    }
 };
 
 class Guid : public Uid {
@@ -26,7 +28,7 @@ class Guid : public Uid {
 
   public:
     Guid() : Uid(generateGuid()) {}
-    Guid(const Guid &rhs) : Uid(generateGuid()) {}
+    Guid(const Guid& rhs) : Uid(generateGuid()) {}
 };
 
 /**
@@ -41,7 +43,7 @@ class Fuid : public Uid {
 
   public:
     Fuid() : Uid(generateFuid()) {}
-    Fuid(const Fuid &fuid) : Uid(fuid) {}
+    Fuid(const Fuid& fuid) : Uid(fuid) {}
 };
 
 class Object {
@@ -51,21 +53,24 @@ class Object {
   public:
     virtual ~Object(){};
     virtual string toString() const = 0;
-    void print() { std::cout << toString() << std::endl; }
-    UidBaseType getGuid() const { return guid; }
+    void print() {
+        std::cout << toString() << std::endl;
+    }
+    UidBaseType getGuid() const {
+        return guid;
+    }
 };
 
-inline std::ostream &operator<<(std::ostream &os, const Object &obj) {
+inline std::ostream& operator<<(std::ostream& os, const Object& obj) {
     os << obj.toString();
     return os;
 }
 
 // Overload for Ref-wrapped Object
-template <typename T,
-          typename std::enable_if_t<std::is_base_of_v<Object, T>> * = nullptr>
-inline std::ostream &operator<<(std::ostream &os, const Ref<T> &obj) {
+template <typename T, typename std::enable_if_t<std::is_base_of_v<Object, T>>* = nullptr>
+inline std::ostream& operator<<(std::ostream& os, const Ref<T>& obj) {
     os << obj->toString();
     return os;
 }
 
-} // namespace infini
+}  // namespace infini
