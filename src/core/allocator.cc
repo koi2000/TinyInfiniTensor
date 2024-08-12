@@ -34,28 +34,32 @@ size_t Allocator::alloc(size_t size) {
     for (auto& pool : pools) {
         for (auto it = pool.freeBlocks.begin(); it != pool.freeBlocks.end(); ++it) {
             if (it->second.size >= size) {
-                size_t addr = it->first;
-                pool.freeBlocks.erase(it);
+                size_t addr = it->second.addr;
+                
                 if (it->second.size > size) {
                     pool.freeBlocks[addr + size] = {addr + size, it->second.size - size};
                 }
-                pool.used += size;
-                // return reinterpret_cast<size_t>(pool.ptr) + addr;
+                pool.freeBlocks.erase(it);
                 return addr;
             }
         }
-        if (pool.size - pool.used >= size) {
-            size_t addr = pool.used;
-            pool.used += size;
-            // return reinterpret_cast<size_t>(pool.ptr) + addr;
-            return addr;
-        }
     }
     MemPool* newPool = createNewPool(size);
-    size_t addr = newPool->used;
-    newPool->used += size;
+    for (auto& pool : pools) {
+        for (auto it = pool.freeBlocks.begin(); it != pool.freeBlocks.end(); ++it) {
+            if (it->second.size >= size) {
+                size_t addr = it->second.addr;
+                
+                if (it->second.size > size) {
+                    pool.freeBlocks[addr + size] = {addr + size, it->second.size - size};
+                }
+                pool.freeBlocks.erase(it);
+                return addr;
+            }
+        }
+    }
     // return reinterpret_cast<size_t>(newPool->ptr) + addr;
-    return addr;
+    return 0;
 }
 
 void Allocator::free(size_t addr, size_t size) {
@@ -68,10 +72,9 @@ void Allocator::free(size_t addr, size_t size) {
     // =================================== 作业
     // ===================================
     for (auto& pool : pools) {
-        if (addr >= reinterpret_cast<size_t>(pool.ptr) && addr < reinterpret_cast<size_t>(pool.ptr) + pool.size) {
-            size_t offset = addr - reinterpret_cast<size_t>(pool.ptr);
+        if (addr >= pool.addr && addr < pool.addr + pool.size) {
+            size_t offset = addr -pool.addr;
             pool.freeBlocks[offset] = {offset, size};
-            pool.used -= size;
 
             // 合并相邻的 free block
             auto it = pool.freeBlocks.find(offset);
@@ -109,8 +112,11 @@ MemPool* Allocator::createNewPool(size_t size) {
         throw std::bad_alloc();
     }
 
-    pools.push_back({newPtr, poolSize, 0, {}});
-    return &pools.back();
+    pools.push_back({newPtr, peak, poolSize, {}});
+    MemPool* newPool = &pools.back();
+    newPool->freeBlocks[peak] = {peak, poolSize};
+    peak = peak + poolSize;
+    return newPool;
 }
 
 size_t Allocator::getAlignedSize(size_t size) {

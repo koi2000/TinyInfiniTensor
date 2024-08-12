@@ -17,8 +17,8 @@ struct FreeBlock {
 
 struct MemPool {
     void* ptr;
+    size_t addr;
     size_t size;
-    size_t used;
     std::map<size_t, FreeBlock> freeBlocks;
 };
 
