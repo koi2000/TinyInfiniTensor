@@ -30,7 +30,9 @@ optional<vector<Shape>> ClipObj::inferShape(const TensorVec& inputs) {
     // TODO：返回经过 clip 操作后的 shape
     // REF: https://onnx.ai/onnx/operators/onnx__Clip.html#clip-13
     // =================================== 作业 ===================================
-    return std::nullopt;
+    // Clip 操作不会改变张量的形状，因此输出形状与输入形状相同
+    const auto A = inputs[0];
+    return {{A->getDims()}};
 }
 
 std::string ClipObj::toString() const {
@@ -48,21 +50,16 @@ CastObj::CastObj(GraphObj* graph, Tensor input, Tensor output, CastType type)
     IT_ASSERT(checkValid(graph));
 }
 
+
 vector<DataType> CastObj::inferDataType(const TensorVec& inputs) const {
-    // =================================== 作业 ===================================
-    // TODO：返回经过 cast 操作后, 输出 tensor 的数目和数据类型
-    // REF_FILE: src/core/operator.cc
-    // REF: https://onnx.ai/onnx/operators/onnx__Cast.html#cast-21
-    // =================================== 作业 ===================================
-    return {};
+    // 推导 Cast 操作后输出的张量数据类型
+    return {getOutputDataType()};
 }
 
 optional<vector<Shape>> CastObj::inferShape(const TensorVec& inputs) {
-    // =================================== 作业 ===================================
-    // TODO：返回经过 cast 操作后的 shape
-    // REF: https://onnx.ai/onnx/operators/onnx__Cast.html#cast-21
-    // =================================== 作业 ===================================
-    return std::nullopt;
+    // Cast 操作不会改变张量的形状，因此输出形状与输入形状相同
+    const auto A = inputs[0];
+    return {{A->getDims()}};
 }
 
 std::string CastObj::toString() const {

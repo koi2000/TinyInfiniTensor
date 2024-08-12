@@ -25,8 +25,12 @@ optional<vector<Shape>> TransposeObj::inferShape(const TensorVec& inputs) {
     // TODO：修改 output_dim，返回正确的 transpose 后的 shape
     // REF: https://onnx.ai/onnx/operators/onnx__Transpose.html#transpose-21
     // =================================== 作业 ===================================
-
-    return std::nullopt;
+    for (int i = 0; i < rank; ++i) {
+        output_dim[i] = input_dim[transposePermute[i]];
+    }
+    // 设置输出张量的形状
+    // inputs[0]->setShape(output_dim);
+    return vector<Shape>{output_dim};
 }
 
 std::string TransposeObj::toString() const {

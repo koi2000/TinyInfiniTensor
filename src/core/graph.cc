@@ -61,6 +61,8 @@ bool GraphObj::topo_sort() {
         // Any node is move to sorted in this loop.
         auto modified = false;
         for (auto const& op : ops) {
+            // op->getPredecessors().clear();
+            // op->getSuccessors().clear();
             if (auto const& inputs = op->getInputs();
                 flags.find(op.get()) == flags.end() &&
                 std::all_of(inputs.begin(), inputs.end(), [&flags](auto const& input) {
@@ -77,6 +79,27 @@ bool GraphObj::topo_sort() {
         }
     }
     this->ops = std::move(sorted);
+    // for (auto op : ops) {
+    //     for (auto& input : op->getInputs()) {
+    //         if (input) {
+    //             input->addTarget(op);
+    //             if (auto pred = input->getSource()) {
+    //                 pred->addSuccessors(op);
+    //                 op->addPredecessors(pred);
+    //             }
+    //         }
+    //     }
+    //     for (auto& output : op->getOutputs()) {
+    //         if (output) {
+    //             output->setSource(op);
+    //             for (auto& succ : output->getTargets()) {
+    //                 succ->addPredecessors(op);
+    //                 op->addSuccessors(succ);
+    //             }
+    //         }
+    //     }
+    // }
+
     return this->sorted = true;
 }
 
@@ -88,6 +111,148 @@ void GraphObj::optimize() {
     // 2.
     // 合并算子（例如，矩阵乘算子中含有属性transA、transB，如果其输入存在transpose，且对最后两个维度做交换，就可以将transpose融入到矩阵乘算子的属性中去）
     // =================================== 作业 ===================================
+    // 1. 去除冗余的算子
+    std::set<Operator> needRemoved;
+    for (auto it = ops.begin(); it != ops.end();) {
+        auto op = *it;
+
+        if (auto transposeOp = dynamic_cast<TransposeObj*>(op.get())) {
+            auto inputTensor = transposeOp->getInputs(0);
+            auto outputTensor = transposeOp->getOutput(0);
+            auto targetOps = outputTensor->getTargets();
+
+            if (targetOps.size() == 1) {
+                if (auto secTransposeOp = dynamic_cast<TransposeObj*>(targetOps[0].get())) {
+                    if (areInverseTransposes(transposeOp, secTransposeOp)) {
+                        // 移除两个反转的 Transpose 操作
+                        inputTensor->removeTarget(op);
+                        // inputTensor->addTarget(secTransposeOp->getSuccessors()[0]);
+                        this->removeTensor(outputTensor);
+                        this->removeTensor(secTransposeOp->getInputs(0));
+                        this->removeTensor(secTransposeOp->getOutput(0));
+                        auto next = secTransposeOp->getSuccessors()[0];
+                        auto next_output = next->getOutput();
+                        for (size_t i = 0; i < next->getInputs().size(); i++) {
+                            if (next->getInputs()[i] == secTransposeOp->getOutput(0)) {
+                                for (auto target : next->getOutput()->getTargets()) {
+                                    inputTensor->addTarget(target);
+                                    target->replaceInput(next_output, inputTensor);
+                                    target->removePredecessors(next);
+                                }
+
+                                next->removePredecessors(targetOps[0]);
+                                next->replaceInput(next->getInputs()[i], inputTensor);
+                                break;
+                            }
+                        }
+
+                        // op->getPredecessors()[0]->addSuccessors(secTransposeOp->getSuccessors()[0]);
+                        it = ops.erase(it);
+                        // ops.erase(std::find(ops.begin(), ops.end(), targetOps[0]));
+                        needRemoved.insert(targetOps[0]);
+                        continue;
+                    }
+                }
+            }
+        }
+        ++it;
+    }
+    for (const auto& op : needRemoved) {
+        this->removeOperator(op);
+    }
+    needRemoved.clear();
+    // 2. 合并算子
+    for (auto it = ops.begin(); it != ops.end(); ++it) {
+        auto op = *it;
+
+        if (op->getOpType() == OpType::MatMul) {
+            auto A = op->getInputs(0);
+            auto B = op->getInputs(1);
+            auto matOp = dynamic_cast<MatmulObj*>(op.get());
+
+            // 检查 A 是否有一个前置的 Transpose 操作
+            if (auto transposeOp = dynamic_cast<TransposeObj*>(A->getSource().get())) {
+                if (isLastTwoDimsTranspose(transposeOp)) {
+                    // 处理 Transpose 逻辑
+                    matOp->setTransA(!matOp->getTransA());  // 翻转 transA
+                    needRemoved.insert(A->getSource());
+                    this->removeTensor(transposeOp->getOutput(0));
+                    for (size_t i = 0; i < matOp->getInputs().size(); i++) {
+                        if (matOp->getInputs()[i] == transposeOp->getOutput(0)) {
+                            // matOp->getInputs()[i]->removeTarget(matOp->getInputs()[i]->getTargets()[0]);
+
+                            // matOp->removePredecessors(A->getSource());
+                            // matOp->replaceInput(matOp->getInputs()[i], transposeOp->getInputs(0));
+                            auto transpose_input = transposeOp->getInputs()[0];
+                            transpose_input->removeTarget(A->getSource());
+                            transpose_input->addTarget(op);
+                            matOp->replaceInput(matOp->getInputs()[i], transpose_input);
+                            matOp->removePredecessors(A->getSource());
+                            break;
+                        }
+                    }
+
+                    A->setSource(nullptr);
+                    // ops.erase(std::find(ops.begin(), ops.end(), A->getSource()));
+                }
+            }
+
+            // 检查 B 是否有一个前置的 Transpose 操作
+            if (auto transposeOp = dynamic_cast<TransposeObj*>(B->getSource().get())) {
+                if (isLastTwoDimsTranspose(transposeOp)) {
+                    // 处理 Transpose 逻辑
+                    matOp->setTransB(!matOp->getTransB());  // 翻转 transB
+                    needRemoved.insert(B->getSource());
+                    this->removeTensor(transposeOp->getOutput(0));
+                    for (size_t i = 0; i < matOp->getInputs().size(); i++) {
+                        if (matOp->getInputs()[i] == transposeOp->getOutput(0)) {
+                            // matOp->removePredecessors(B->getSource());
+                            // matOp->replaceInput(matOp->getInputs()[i], transposeOp->getInputs(0));
+                            auto transpose_input = transposeOp->getInputs()[0];
+                            transpose_input->removeTarget(B->getSource());
+                            transpose_input->addTarget(op);
+                            matOp->replaceInput(matOp->getInputs()[i], transpose_input);
+                            matOp->removePredecessors(B->getSource());
+                            break;
+                        }
+                    }
+                    B->setSource(nullptr);
+                    // ops.erase(std::find(ops.begin(), ops.end(), B->getSource()));
+                }
+            }
+        }
+    }
+    // 统一删除标记要删除的操作符
+    for (const auto& op : needRemoved) {
+        this->removeOperator(op);
+    }
+    // 需要重新执行拓扑排序以确保操作符顺序正确
+    topo_sort();
+}
+
+// Helper function to determine if two Transpose operations are inverses
+bool GraphObj::areInverseTransposes(TransposeObj* op1, TransposeObj* op2) {
+    auto permute1 = op1->getPermute();
+    auto permute2 = op2->getPermute();
+
+    if (permute1.size() != permute2.size()) {
+        return false;
+    }
+
+    // 检查permute1和permute2是否互为逆
+    for (size_t i = 0; i < permute1.size(); ++i) {
+        if (permute2[permute1[i]] != (int)i) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Helper function to check if a Transpose operation transposes the last two dimensions
+bool GraphObj::isLastTwoDimsTranspose(TransposeObj* op) {
+    auto perm = op->getPermute();
+    auto rank = perm.size();
+    return perm[rank - 2] == int(rank - 1) && perm[rank - 1] == int(rank - 2);
 }
 
 Tensor GraphObj::getTensor(int fuid) const {
@@ -126,7 +291,10 @@ void GraphObj::dataMalloc() {
     // TODO：利用 allocator 给计算图分配内存
     // HINT: 获取分配好的内存指针后，可以调用 tensor 的 setDataBlob 函数给 tensor 绑定内存
     // =================================== 作业 ===================================
-
+    for (Tensor& tensor : tensors) {
+        size_t offset = allocator.alloc(tensor->getBytes());
+        tensor->setDataBlob(std::make_shared<BlobObj>(runtime, allocator.getPtr() + offset));
+    }
     allocator.info();
 }
 

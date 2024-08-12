@@ -2,6 +2,8 @@
 #include "core/allocator.h"
 #include "core/operator.h"
 #include "core/tensor.h"
+#include "operators/matmul.h"
+#include "operators/transpose.h"
 
 namespace infini {
 
@@ -104,6 +106,10 @@ class GraphObj : public Object {
      * @brief Add reverse connections and Op relationship in ctor.
      */
     void addOperatorAndConnect(const Operator& op);
+
+    bool isLastTwoDimsTranspose(TransposeObj* op);
+
+    bool areInverseTransposes(TransposeObj* op1, TransposeObj* op2);
 
     /**
      * @brief If the nodes is sorted in topological order.

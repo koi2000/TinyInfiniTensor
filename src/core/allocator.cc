@@ -40,19 +40,22 @@ size_t Allocator::alloc(size_t size) {
                     pool.freeBlocks[addr + size] = {addr + size, it->second.size - size};
                 }
                 pool.used += size;
-                return reinterpret_cast<size_t>(pool.ptr) + addr;
+                // return reinterpret_cast<size_t>(pool.ptr) + addr;
+                return addr;
             }
         }
         if (pool.size - pool.used >= size) {
             size_t addr = pool.used;
             pool.used += size;
-            return reinterpret_cast<size_t>(pool.ptr) + addr;
+            // return reinterpret_cast<size_t>(pool.ptr) + addr;
+            return addr;
         }
     }
     MemPool* newPool = createNewPool(size);
     size_t addr = newPool->used;
     newPool->used += size;
-    return reinterpret_cast<size_t>(newPool->ptr) + addr;
+    // return reinterpret_cast<size_t>(newPool->ptr) + addr;
+    return addr;
 }
 
 void Allocator::free(size_t addr, size_t size) {
@@ -100,7 +103,7 @@ void* Allocator::getPtr() {
 }
 
 MemPool* Allocator::createNewPool(size_t size) {
-    size_t poolSize = std::max(this->alignment * 1024, size);  // 根据需要调整池大小
+    size_t poolSize = std::max(this->alignment * 40960, size);  // 根据需要调整池大小
     void* newPtr = runtime->alloc(poolSize);
     if (newPtr == nullptr) {
         throw std::bad_alloc();

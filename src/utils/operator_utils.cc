@@ -8,8 +8,34 @@ Shape infer_broadcast(const Shape& A, const Shape& B) {
     // TODO：对 A 和 B 进行双向广播，返回广播后的形状。
     // REF: https://github.com/onnx/onnx/blob/main/docs/Broadcasting.md
     // =================================== 作业 ===================================
+    Shape result;
 
-    return {};
+    // 逆序遍历两个形状，以确保从最后一个维度开始进行广播
+    auto itA = A.rbegin();
+    auto itB = B.rbegin();
+
+    while (itA != A.rend() || itB != B.rend()) {
+        size_t dimA = (itA != A.rend()) ? *itA : 1;
+        size_t dimB = (itB != B.rend()) ? *itB : 1;
+
+        // 检查广播规则
+        if (dimA == dimB || dimA == 1 || dimB == 1) {
+            result.push_back(std::max(dimA, dimB));
+        } else {
+            // 如果维度不兼容，返回空的 Shape，表示广播失败
+            return {};
+        }
+
+        if (itA != A.rend())
+            ++itA;
+        if (itB != B.rend())
+            ++itB;
+    }
+
+    // 逆序返回结果，因为我们从最后一个维度开始构造的
+    std::reverse(result.begin(), result.end());
+
+    return result;
 }
 
 int get_real_axis(const int& axis, const int& rank) {
